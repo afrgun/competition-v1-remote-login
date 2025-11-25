@@ -4,7 +4,7 @@ const path = require("path");
 module.exports = {
   output: {
     uniqueName: "remoteLogin",
-    publicPath: "http://localhost:4200/"
+    publicPath: "auto"
   },
   optimization: {
     runtimeChunk: false
