@@ -2,7 +2,16 @@
   command = "npm run build"
   publish = "dist/competition-v1-remote-login"
 
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "*"
+
+# Redirect hanya untuk non-file requests (SPA fallback)
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false  # Tidak force redirect jika file exist
