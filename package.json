@@ -4,7 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build --prod",
+    "build": "ng build --configuration production",
     "build:dev": "ng build",
     "serve:mf": "ng serve --port 4200",
     "watch": "ng build --watch --configuration development",
