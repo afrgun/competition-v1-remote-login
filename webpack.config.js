@@ -4,10 +4,14 @@ const path = require("path");
 module.exports = {
   output: {
     uniqueName: "remoteLogin",
-    publicPath: "auto"
+    publicPath: "auto",
+    scriptType: "text/javascript"
   },
   optimization: {
     runtimeChunk: false
+  },
+  experiments: {
+    outputModule: false
   },
   plugins: [
     new ModuleFederationPlugin({
