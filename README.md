@@ -237,6 +237,179 @@ Check `angular.json` → `serve.options.headers` sudah include CORS headers
 - ✅ Independent deployment: Angular dan Next.js deploy terpisah
 - ✅ Scalable: bisa tambah remote lain (register, profile, etc.)
 
+## 🌐 Production Deployment
+
+### Deployment ke Netlify
+
+Remote Angular ini sudah di-deploy ke production:
+```
+https://competition-v1-remote-ng.netlify.app/remoteEntry.js
+```
+
+### Setup yang Diperlukan untuk Production
+
+#### 1. **Webpack Configuration**
+
+**File: `webpack.config.js`**
+
+```javascript
+output: {
+  publicPath: "auto",           // Auto-detect URL (localhost/production)
+  scriptType: "text/javascript" // Fix import.meta error
+},
+experiments: {
+  outputModule: false            // Disable ESM output untuk compatibility
+}
+```
+
+**Alasan:**
+- `publicPath: "auto"` - Webpack akan otomatis detect URL yang benar (localhost untuk dev, Netlify URL untuk production)
+- `scriptType: "text/javascript"` - Force output sebagai regular JavaScript script, bukan ES module
+- `experiments.outputModule: false` - Disable ES module output yang menyebabkan `import.meta` error di production
+
+#### 2. **TypeScript Configuration**
+
+**File: `tsconfig.json`**
+
+```json
+{
+  "target": "ES2020",
+  "module": "ES2020",
+  "moduleResolution": "node"
+}
+```
+
+**Alasan:**
+- `target: "ES2020"` - Target yang compatible dengan Module Federation (ES2022 terlalu modern)
+- `module: "ES2020"` - Module format yang compatible (bukan "preserve" yang menghasilkan import.meta)
+- `moduleResolution: "node"` - Resolver untuk Angular modules dari node_modules
+
+**Issue yang diselesaikan:**
+- ❌ Error: `Cannot use 'import.meta' outside a module`
+- ❌ Error: `Cannot find module '@angular/core'`
+
+#### 3. **Netlify Configuration**
+
+**File: `netlify.toml`**
+
+```toml
+[build]
+  command = "npm run build"
+  publish = "dist/competition-v1-remote-login"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "*"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+```
+
+**Alasan:**
+- **CORS Headers** - Diperlukan agar host Next.js (domain berbeda) bisa load remoteEntry.js
+- **force = false** - Penting! Tanpa ini, semua requests termasuk `remoteEntry.js` akan di-redirect ke `index.html`
+
+**Issue yang diselesaikan:**
+- ❌ CORS error saat load remote dari host
+- ❌ remoteEntry.js ke-redirect ke index.html (404)
+
+### Deployment Steps
+
+#### 1. Build Production
+```bash
+npm run build
+```
+
+#### 2. Verify Build Output
+```bash
+ls dist/competition-v1-remote-login
+# Harus ada: remoteEntry.js, main.*.js, dll
+```
+
+#### 3. Test Build Local (Optional)
+```bash
+npx http-server dist/competition-v1-remote-login -p 4200 --cors -c-1
+```
+
+Test di host apakah bisa load dari localhost:4200
+
+#### 4. Deploy ke Netlify
+
+**Via Git:**
+```bash
+git add .
+git commit -m "Build production ready"
+git push origin mfc
+```
+
+Netlify akan auto-deploy setelah push.
+
+**Via Netlify CLI:**
+```bash
+npm install -g netlify-cli
+netlify deploy --prod --dir=dist/competition-v1-remote-login
+```
+
+#### 5. Verify Production
+
+**Cek remoteEntry.js accessible:**
+```
+https://competition-v1-remote-ng.netlify.app/remoteEntry.js
+```
+
+Harus return JavaScript code (bukan 404 atau HTML).
+
+**Update Host Next.js:**
+```javascript
+// next.config.js
+remotes: {
+  remoteLogin: 'remoteLogin@https://competition-v1-remote-ng.netlify.app/remoteEntry.js'
+}
+```
+
+### Common Production Issues
+
+#### Issue: Blank page di production
+**Cause:** Web component hanya di-register, tidak di-render ke DOM
+
+**Solution:** Expected behavior untuk remote-only deployment. Component akan di-render oleh host.
+
+#### Issue: `Cannot use 'import.meta' outside a module`
+**Cause:** TypeScript/Webpack menghasilkan ES module output dengan import.meta
+
+**Solution:**
+- Set `scriptType: "text/javascript"` di webpack
+- Set `experiments.outputModule: false`
+- Change TypeScript target ke ES2020
+
+#### Issue: CORS error di host
+**Cause:** Netlify tidak include CORS headers
+
+**Solution:** Tambah CORS headers di `netlify.toml`
+
+#### Issue: remoteEntry.js 404 di production
+**Cause:** Netlify redirect rule force redirect semua ke index.html
+
+**Solution:** Set `force = false` di redirect rule
+
+### Verify Deployment Success
+
+Checklist untuk memastikan deployment berhasil:
+
+- [ ] Build berhasil tanpa error
+- [ ] remoteEntry.js accessible (status 200)
+- [ ] No CORS errors di browser console
+- [ ] No import.meta errors di browser console
+- [ ] Web component registered successfully (cek console log)
+- [ ] Login form muncul di host production
+- [ ] Form submit emit event dengan benar
+
 ## 📝 Notes
 
 1. **Port 4200 harus available** saat development
@@ -244,6 +417,8 @@ Check `angular.json` → `serve.options.headers` sudah include CORS headers
 3. **TypeScript types**: Web component tidak punya type safety by default
 4. **Production**: Deploy Angular remote terpisah, update URL di Next.js config
 5. **Testing**: Test Angular standalone dulu sebelum integrate ke Next.js
+6. **CORS**: Pastikan CORS headers enabled di hosting untuk cross-origin requests
+7. **Build output**: Gunakan ES2020 target untuk compatibility dengan Module Federation
 
 ## 🔗 Related Documentation
 
